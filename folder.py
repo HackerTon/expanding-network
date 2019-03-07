@@ -44,6 +44,11 @@ class folder:
         else:
             print('Index more the classes')
 
-    def load(self):
-        folder_size = [os.listdir(os.path.join(self.base_directory, str(x))) for x in range(3)]
-        print(folder_size)
+    def generator(self):
+        current_iter = 0
+
+        while current_iter != self.number_of_class:
+            for image_addr in os.listdir(os.path.join(self.base_directory, str(current_iter))):
+                yield os.path.join(self.base_directory, os.path.join(str(current_iter), image_addr)), current_iter
+
+            current_iter += 1
