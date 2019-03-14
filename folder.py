@@ -3,6 +3,7 @@ import numpy as np
 # Colorama for print styling
 from colorama import Fore, Back, Style
 import cv2
+import tensorflow as tf
 
 # Default folder for current system
 HOME = '/home/hackerton/'
@@ -52,3 +53,52 @@ class folder:
                 yield os.path.join(self.base_directory, os.path.join(str(current_iter), image_addr)), current_iter
 
             current_iter += 1
+
+    def dataset_generation(self, batch_size=1):
+        # array = [os.listdir(os.path.join(self.base_directory, file)) for file in os.listdir(self.base_directory)]
+
+        total_amount = 0
+
+        # Get number of images
+        for x in range(self.number_of_class):
+            array = os.listdir(os.path.join(self.base_directory, str(x)))
+            # print(f'{array}, {len(array)}')
+
+            total_amount += len(array)
+
+        print(total_amount)
+
+        if batch_size < 0:
+            batch_size = total_amount
+
+        if batch_size > total_amount:
+            print('Batch is bigger than total_amount')
+            batch_size = total_amount
+        else:
+            batch_size = batch_size
+
+        dataset = tf.data.Dataset.from_generator(self.generator, (tf.string, tf.int64),
+                                                 (tf.TensorShape([]), tf.TensorShape([])))
+
+        dataset = dataset.apply(tf.data.experimental.map_and_batch(self._read_image, batch_size=batch_size,
+                                                                   num_parallel_batches=1))
+
+        dataset = dataset.apply(tf.data.experimental.shuffle_and_repeat(buffer_size=batch_size))
+
+        return dataset
+
+    def _read_image(image, value):
+        img_string = tf.read_file(image)
+
+        # TODO make sure crop window is suitable for resnet input
+        image = tf.image.decode_and_crop_jpeg(img_string, crop_window=[47, 80, 66, 200],
+                                              channels=0)
+
+        image = tf.image.convert_image_dtype(image, tf.float32)
+        image = image - tf.reduce_mean(input_tensor=image)
+
+        return image, value
+
+
+folder_1 = folder('/home/hackerton/mylife', number_of_class=3)
+folder_1.dataset_generation(20)

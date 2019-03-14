@@ -1,7 +1,6 @@
 from camera import camera
 from folder import folder
 from neural_network import expandingNetwork
-import dataset as ds
 
 from cv2 import imshow, waitKey, destroyAllWindows
 
@@ -30,11 +29,9 @@ def main():
         elif result == ord('f'):
             folder_1.save(2, img=image)
         elif result == ord('t'):
-            generator = folder_1.generator
+            dataset = folder_1.dataset_generation(batch_size=5)
 
-            dataset = ds.import_dataset_from_generator(generator, batch_size=10)
-
-            network_1.train(dataset=dataset)
+            network_1.train(dataset=datasets)
 
 
 if __name__ == '__main__':
