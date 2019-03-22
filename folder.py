@@ -5,6 +5,9 @@ from colorama import Fore, Back, Style
 import cv2
 import tensorflow as tf
 
+# Debugging
+# tf.enable_eager_execution()
+
 # Default folder for current system
 HOME = '/home/hackerton/'
 
@@ -55,18 +58,13 @@ class folder:
             current_iter += 1
 
     def dataset_generation(self, batch_size=1):
-        # array = [os.listdir(os.path.join(self.base_directory, file)) for file in os.listdir(self.base_directory)]
-
         total_amount = 0
 
         # Get number of images
         for x in range(self.number_of_class):
             array = os.listdir(os.path.join(self.base_directory, str(x)))
-            # print(f'{array}, {len(array)}')
 
             total_amount += len(array)
-
-        print(total_amount)
 
         if batch_size < 0:
             batch_size = total_amount
@@ -85,20 +83,25 @@ class folder:
 
         dataset = dataset.apply(tf.data.experimental.shuffle_and_repeat(buffer_size=batch_size))
 
+        print(dataset)
+
         return dataset
 
-    def _read_image(image, value):
-        img_string = tf.read_file(image)
+    def _read_image(self, image, value):
+        image_string = tf.read_file(image)
 
-        # TODO make sure crop window is suitable for resnet input
-        image = tf.image.decode_and_crop_jpeg(img_string, crop_window=[47, 80, 66, 200],
-                                              channels=0)
+        # TODO make sure crop window is suitable for resnet input should (244, 244)
+        image = tf.image.decode_png(contents=image_string, channels=3)
+
+        image = tf.image.resize_images(images=image, size=[244, 244])
 
         image = tf.image.convert_image_dtype(image, tf.float32)
+
+        # Normalization process
         image = image - tf.reduce_mean(input_tensor=image)
 
         return image, value
 
-
-folder_1 = folder('/home/hackerton/mylife', number_of_class=3)
-folder_1.dataset_generation(20)
+# folder_1 = folder('/home/hackerton/mylife', number_of_class=3)
+# dataset = folder_1.dataset_generation(batch_size=5)
+# print(dataset)

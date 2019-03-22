@@ -22,5 +22,7 @@ class expandingNetwork:
         self.model.compile(loss=keras.losses.categorical_crossentropy, optimizer=keras.optimizers.Nadam(),
                            metrics=[keras.metrics.mean_squared_error, keras.metrics.categorical_accuracy])
 
+        early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 
-        # TODO Continue to write the training method
+        self.model.fit(dataset, epochs=30,
+                       steps_per_epoch=1, callbacks=[early_stop])

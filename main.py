@@ -15,8 +15,6 @@ def main():
         ret, image = camera_1.play()
         imshow('window', image)
 
-        print(f'Function: ret')
-
         result = waitKey(1)
 
         if result == ord('q'):
@@ -31,7 +29,7 @@ def main():
         elif result == ord('t'):
             dataset = folder_1.dataset_generation(batch_size=5)
 
-            network_1.train(dataset=datasets)
+            network_1.train(dataset=dataset)
 
 
 if __name__ == '__main__':
