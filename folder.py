@@ -83,14 +83,11 @@ class folder:
 
         dataset = dataset.apply(tf.data.experimental.shuffle_and_repeat(buffer_size=batch_size))
 
-        print(dataset)
-
         return dataset
 
     def _read_image(self, image, value):
         image_string = tf.read_file(image)
 
-        # TODO make sure crop window is suitable for resnet input should (244, 244)
         image = tf.image.decode_png(contents=image_string, channels=3)
 
         image = tf.image.resize_images(images=image, size=[244, 244])
