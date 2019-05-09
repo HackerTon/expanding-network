@@ -32,15 +32,11 @@ if __name__ == '__main__':
     # args = parser.parse_args()
     # print(args.echo)
 
-
-
-
     tensor_1 = tensorTrt(path_to_saved_model='savemodel',
                          batch_size=1,
                          max_gpu_mem_size_for_trt=1024)
 
     while True:
         input_array = np.random.rand(1, 244, 244, 3)
-
 
         print(tensor_1.infer(input_array))

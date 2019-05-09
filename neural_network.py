@@ -1,7 +1,44 @@
 from tensorflow.python import keras
 from tensorflow.contrib import saved_model
+from tensorflow.python.keras.preprocessing import image
+
+import cv2 as cv
+import tensorflow as tf
+
+import numpy as np
 
 import pandas as pd
+
+tf.enable_eager_execution()
+
+
+class defaultNetwork:
+    def __init__(self):
+        self.model: keras.Model = keras.applications.resnet50.ResNet50(weights='imagenet')
+
+        for layer in self.model.layers:
+            layer.trainable = False
+
+        # self.model.summary()
+
+    def infer(self, img):
+        img = cv.resize(img, dsize=(224, 224))
+
+        img = np.expand_dims(img, axis=0)
+
+        img = keras.applications.resnet50.preprocess_input(img)
+
+        preds = self.model.predict(img, steps=1)
+
+        decoded = keras.applications.resnet50.decode_predictions(preds, top=3)[0]
+
+        return decoded[0][1]
+
+        # print('Predicted:', decoded)
+        #
+        # assert (0.75 < decoded[0][2] < 0.9), 'Model failed!'
+        #
+        # print('Model passed!')
 
 
 class expandingNetwork:
