@@ -27,8 +27,8 @@ def main():
         imshow('window', image)
         result = waitKey(1)
 
-        if enable_realtime_prediction is False:
-            enable_realtime_prediction = True if result == ord('p') else False
+        if result == ord('p'):
+            enable_realtime_prediction = True if enable_realtime_prediction is False else False
 
         print('Enable' if enable_realtime_prediction is True else 'Disable')
 
