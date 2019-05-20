@@ -10,9 +10,7 @@ def main():
     camera_1 = camera()
     folder_1 = folder('/home/hackerton/mylife', number_of_class=3)
 
-    # network_1 = expandingNetwork(number_of_class=3)
-
-    network_1 = defaultNetwork()
+    network_1 = expandingNetwork(number_of_class=3)
 
     enable_realtime_prediction = False
 
@@ -21,16 +19,23 @@ def main():
 
         if enable_realtime_prediction is True:
             probability = network_1.infer(image)
-            putText(image, str(probability), (30, 30), 0,
-                    1, (0, 0, 0), LINE_8)
+            putText(
+                img=image,
+                text=str(probability),
+                org=(30, 30),
+                fontFace=0,
+                fontScale=1,
+                color=(0, 0, 0),
+                lineType=LINE_8
+            )
+            print(probability)
 
         imshow('window', image)
         result = waitKey(1)
 
         if result == ord('p'):
             enable_realtime_prediction = True if enable_realtime_prediction is False else False
-
-        print('Enable' if enable_realtime_prediction is True else 'Disable')
+            print('Enable' if enable_realtime_prediction is True else 'Disable')
 
         if result == ord('q'):
             destroyAllWindows()
@@ -44,7 +49,9 @@ def main():
         elif result == ord('t'):
             dataset = folder_1.dataset_generation(batch_size=5)
 
-            network_1.train(dataset=dataset)
+            steps_per_epoch = folder_1.dataset_size / 5
+
+            network_1.train(dataset=dataset, steps_per_epoch=steps_per_epoch)
 
             network_1.save_model()
 
