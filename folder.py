@@ -1,11 +1,12 @@
 import os
 import time
 import cv2
+import glob
 import pathlib
 import tensorflow as tf
 
 # Debugging
-tf.enable_eager_execution()
+# tf.enable_eager_execution()
 
 # Default folder for current system
 HOME = '/home/hackerton/'
@@ -25,13 +26,23 @@ class folder:
 
         print(self.base_directory)
 
+    def count(self):
+        base_path = pathlib.Path(self.base_directory)
+
+        subd = []
+
+        for subdirectory in base_path.iterdir():
+            subd.append(len(list(subdirectory.iterdir())))
+
+        return subd
+
     def save(self, index_folder, img):
         self.local_time = time.time()
 
         try:
             index_folder = int(index_folder)
 
-            if 0 <= index_folder < self.number_of_class:
+            if 0 <= index_folder <= self.number_of_class:
                 local_path = os.path.join(self.base_directory, str(index_folder))
 
                 local_dir = pathlib.Path(local_path)
@@ -44,10 +55,13 @@ class folder:
                     except Exception as e:
                         print(e)
 
-                cv2.imwrite(os.path.join(local_path, str(self.local_time), '.jpeg'), img)
-                print('Write successful!')
+                write_or_failed = cv2.imwrite(os.path.join(local_path, str(self.local_time) + '.jpeg'), img)
+
+                if write_or_failed:
+                    print('Write successful!')
+                else:
+                    print('Write failed!')
             else:
-                print('Write failed!')
                 print('You try to index more than the classes avaiable!')
 
         except TypeError as e:
@@ -63,12 +77,9 @@ class folder:
 
             current_iter += 1
 
-    def dataset_generation(self, batch_size=1):
-        # Get number of images
-        for x in range(self.number_of_class):
-            array = os.listdir(os.path.join(self.base_directory, str(x)))
-
-            self.dataset_size += len(array)
+    def dataset_generation(self, batch_size=1, network_type='inception'):
+        # Get the size of whole dataset
+        self.dataset_size = len(glob.glob(os.path.join(self.base_directory, '**/*.jpeg'), recursive=True))
 
         if batch_size < 0:
             batch_size = self.dataset_size
@@ -80,6 +91,13 @@ class folder:
         else:
             batch_size = batch_size
 
+        if network_type == 'inception':
+            _image_read = self._read_image_inception
+        elif network_type == 'resnet':
+            _image_read = self._read_image_resnet
+        else:
+            _image_read = None
+
         dataset = tf.data.Dataset.from_generator(
             generator=self.generator,
             output_types=(tf.string, tf.int32),
@@ -88,19 +106,37 @@ class folder:
 
         dataset = dataset.shuffle(buffer_size=self.dataset_size)
         dataset = dataset.repeat()
-        dataset = dataset.map(map_func=self._read_image, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        dataset = dataset.map(map_func=_image_read, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         dataset = dataset.batch(batch_size=batch_size)
         dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
 
         return dataset
 
-    def _read_image(self, image, index):
+    def _read_image_inception(self, image, index):
         image_bytes = tf.read_file(image)
-        image = tf.image.decode_png(contents=image_bytes, channels=3)
-        image = tf.image.resize_images(images=image, size=[224, 224])
+        image = tf.image.decode_jpeg(contents=image_bytes, channels=3)
+        # image = tf.image.random_crop(value=image, size=[100, 100, 3])
+        image = tf.image.resize_images(images=image, size=[200, 200])
         image = tf.image.convert_image_dtype(image, tf.float32)
 
         # Normalization process
-        image /= 255.0
+        image /= 127.5
+        image -= 1.
+
+        return image, tf.one_hot(indices=index, depth=self.number_of_class)
+
+    def _read_image_resnet(self, image, index):
+        image_bytes = tf.read_file(image)
+        image = tf.image.decode_jpeg(contents=image_bytes, channels=3)
+        # image = tf.image.random_crop(value=image, size=[100, 100, 3])
+        image = tf.image.resize_images(images=image, size=[200, 200])
+        image = tf.image.convert_image_dtype(image, tf.float32)
+        image = tf.image.random_flip_left_right(image)
+
+        # Normalization process
+        image = image[..., ::-1]
+        mean = [103.939, 116.779, 123.68]
+
+        image -= mean
 
         return image, tf.one_hot(indices=index, depth=self.number_of_class)

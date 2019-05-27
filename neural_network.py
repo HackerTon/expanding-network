@@ -2,14 +2,16 @@ import cv2
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+import shutil
 import pathlib
 
 from tensorflow.python import keras
 from tensorflow.contrib import saved_model
-from tensorflow.python.keras.layers import Dense, InputLayer
+from tensorflow.python.keras.layers import Dense, GlobalAveragePooling2D, Conv2D, add, Input, MaxPool2D
 
-tf.enable_eager_execution()
 
+# Keras Resnet: BGR
+# Keras Inception: RGB
 
 class defaultNetwork:
     def __init__(self):
@@ -40,8 +42,32 @@ class defaultNetwork:
         # print('Model passed!')
 
 
+def resnet_block(input, filters, kernel_size, stride=1, padding='same'):
+    y = Conv2D(filters=filters, kernel_size=kernel_size, strides=stride, padding=padding, activation='relu')(input)
+    y = Conv2D(filters=filters, kernel_size=kernel_size, strides=stride, padding=padding, activation='relu')(y)
+
+    return add([input, y])
+
+
+class resnet:
+    def __init__(self):
+        input = Input(shape=(224, 224, 3))
+
+        x = MaxPool2D(pool_size=(3, 3), strides=2, padding='same')(input)
+
+        for i in range(2):
+            if i == 0:
+                x = Conv2D(filters=64, kernel_size=3, strides=(2, 2), padding='same', activation='relu')(x)
+
+            x = resnet_block(x, filters=64, kernel_size=3)
+
+        self.model = keras.Model(inputs=input, outputs=x)
+
+        self.model.summary()
+
+
 class expandingNetwork:
-    def __init__(self, number_of_class):
+    def __init__(self, number_of_class, model_type='inception'):
         try:
             self.number_of_class = int(number_of_class)
         except TypeError:
@@ -53,34 +79,73 @@ class expandingNetwork:
             self.classifier_model = saved_model.load_keras_model(saved_model_path='savemodel')
             print('Savedmodel loaded!')
         else:
-            resnet_model: keras.Model = keras.applications.resnet50.ResNet50(
-                include_top=False,
-                weights='imagenet',
-                pooling='avg',
-                input_shape=(224, 224, 3)
-            )
-
-            for layer in resnet_model.layers:
-                layer.trainable = False
-
-            last_output = Dense(
-                units=self.number_of_class,
-                activation='softmax',
-                name='final_dense_layer'
-            )(resnet_model.output)
-
-            self.classifier_model = keras.Model(inputs=resnet_model.input, outputs=last_output)
+            if model_type == 'inception':
+                self.classifier_model = self.inception()
+            elif model_type == 'resnet':
+                self.classifier_model = self.resnet()
+            else:
+                self.classifier_model = None
             print('Created new model!')
 
-    def train(self, dataset, steps_per_epoch):
+        self.classifier_model.summary()
+
+    def resnet(self):
+        resnet_model: keras.Model = keras.applications.resnet50.ResNet50(
+            include_top=False,
+            weights='imagenet',
+            input_shape=(200, 200, 3)
+        )
+
+        for layer in resnet_model.layers:
+            layer.trainable = False
+
+        last_output = GlobalAveragePooling2D()(resnet_model.output)
+
+        last_output = Dense(
+            units=self.number_of_class,
+            activation='softmax',
+            name='final_dense_layer'
+        )(last_output)
+
+        model = keras.Model(inputs=resnet_model.input, outputs=last_output)
+
+        print('Resnet')
+
+        return model
+
+    def inception(self):
+        inception_model: keras.Model = keras.applications.inception_v3.InceptionV3(
+            include_top=False,
+            weights='imagenet',
+            input_shape=(200, 200, 3)
+        )
+
+        for layer in inception_model.layers:
+            layer.trainable = False
+
+        last_output = GlobalAveragePooling2D()(inception_model.output)
+
+        last_output = Dense(
+            units=self.number_of_class,
+            activation='softmax',
+            name='final_dense_layer'
+        )(last_output)
+
+        model = keras.Model(inputs=inception_model.input, outputs=last_output)
+
+        print('Inception')
+
+        return model
+
+    def train(self, dataset, steps_per_epoch, validation_data):
         self.classifier_model.compile(
             loss='categorical_crossentropy',
-            optimizer=keras.optimizers.sgd(lr=1e-4, momentum=0.997),
-            metrics=[keras.metrics.categorical_accuracy]
+            optimizer=keras.optimizers.sgd(lr=1e-6, momentum=0.997),
+            metrics=['accuracy']
         )
 
         early_stopping = keras.callbacks.EarlyStopping(
-            monitor='categorical_accuracy',
+            monitor='loss',
             min_delta=0, patience=10,
             verbose=1,
             mode='auto'
@@ -88,24 +153,42 @@ class expandingNetwork:
 
         self.classifier_model.fit(
             x=dataset,
-            epochs=30,
+            epochs=128,
             steps_per_epoch=steps_per_epoch,
-            callbacks=[early_stopping]
+            # callbacks=[early_stopping],
+            validation_data=validation_data
         )
 
-    def infer(self, image):
-        image = cv2.resize(
-            src=image,
-            dsize=(224, 224),
-        )
+    def infer(self, image, network_type='inception'):
+        image = cv2.resize(src=image, dsize=(200, 200))
         image = np.expand_dims(image, axis=0)
         image = image.astype(np.float32)
-        image /= 255.0
 
-        probablity = self.classifier_model.predict(x=image, steps=1)
+        if network_type == 'inception':
+            # RGB
+            image /= 127.5
+            image -= 1.
+        elif network_type == 'resnet':
+            # BGR
+            image = image[..., ::-1]
+            mean = [103.939, 116.779, 123.68]
+
+            image[..., 0] -= mean[0]
+            image[..., 1] -= mean[1]
+            image[..., 2] -= mean[2]
+        else:
+            image /= 255.
+
+        probablity = self.classifier_model.predict(x=image)
 
         return probablity
 
     def save_model(self):
+        savemodel_path = pathlib.Path('savemodel')
+
+        if savemodel_path.exists():
+            shutil.rmtree('savemodel')
+
         saved_model.save_keras_model(model=self.classifier_model, saved_model_path='savemodel')
 
+        print('Model saved!')
