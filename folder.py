@@ -120,6 +120,7 @@ class folder:
         image = tf.image.convert_image_dtype(image, tf.float32)
 
         # Normalization process
+        image = image[..., ::-1]
         image /= 127.5
         image -= 1.
 
@@ -134,7 +135,6 @@ class folder:
         image = tf.image.random_flip_left_right(image)
 
         # Normalization process
-        image = image[..., ::-1]
         mean = [103.939, 116.779, 123.68]
 
         image -= mean

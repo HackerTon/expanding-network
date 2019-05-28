@@ -166,16 +166,14 @@ class expandingNetwork:
 
         if network_type == 'inception':
             # RGB
+            image = image[..., ::-1]
             image /= 127.5
             image -= 1.
         elif network_type == 'resnet':
             # BGR
-            image = image[..., ::-1]
             mean = [103.939, 116.779, 123.68]
 
-            image[..., 0] -= mean[0]
-            image[..., 1] -= mean[1]
-            image[..., 2] -= mean[2]
+            image -= mean
         else:
             image /= 255.
 

@@ -22,10 +22,12 @@ def main():
         ret, image = camera_1.play()
 
         if NETWORK == 'inception':
-            image = cvtColor(image, COLOR_BGR2RGB)
+            infer_image = cvtColor(image, COLOR_BGR2RGB)
+        else:
+            infer_image = image
 
         if enable_realtime_prediction is True:
-            probability = network_1.infer(image=image, network_type=NETWORK)
+            probability = network_1.infer(image=infer_image, network_type=NETWORK)
 
             index = np.argmax(probability[0])
 
