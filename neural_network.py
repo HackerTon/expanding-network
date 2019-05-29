@@ -78,6 +78,31 @@ class expandingNetwork:
         if savemodel_path.exists():
             self.classifier_model = saved_model.load_keras_model(saved_model_path='savemodel')
             print('Savedmodel loaded!')
+
+            output_of_dense = self.classifier_model.output_shape[1]
+
+            if output_of_dense is not self.number_of_class:
+                output = Dense(
+                    units=self.number_of_class,
+                    activation='softmax',
+                    name='final_output_layer'
+                )(self.classifier_model.get_layer(name='global_average_pooling2d').output)
+
+                output_layer = self.classifier_model.layers.pop()
+
+                output_variable = output_layer.get_weights()
+
+                self.classifier_model = keras.Model(inputs=self.classifier_model.input, outputs=output)
+
+                random_weights = np.random.uniform(.005, .006, size=(output_variable[0].shape[0], 1))
+                random_bias = np.random.uniform(.005, .006, size=1)
+
+                output_weights = np.concatenate((output_variable[0], random_weights), axis=1)
+                output_bias = np.concatenate((output_variable[1], random_bias))
+
+                local_array = self.classifier_model.layers.pop().get_weights()
+
+                self.classifier_model.layers.pop().set_weights([output_weights, output_bias])
         else:
             if model_type == 'inception':
                 self.classifier_model = self.inception()
@@ -99,7 +124,7 @@ class expandingNetwork:
         for layer in resnet_model.layers:
             layer.trainable = False
 
-        last_output = GlobalAveragePooling2D()(resnet_model.output)
+        last_output: keras.layers.Layer = GlobalAveragePooling2D()(resnet_model.output)
 
         last_output = Dense(
             units=self.number_of_class,
@@ -123,7 +148,7 @@ class expandingNetwork:
         for layer in inception_model.layers:
             layer.trainable = False
 
-        last_output = GlobalAveragePooling2D()(inception_model.output)
+        last_output: keras.layers.Layer = GlobalAveragePooling2D()(inception_model.output)
 
         last_output = Dense(
             units=self.number_of_class,

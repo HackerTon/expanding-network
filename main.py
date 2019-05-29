@@ -8,13 +8,14 @@ from cv2 import imread, imreadmulti, cvtColor, COLOR_BGR2RGB
 
 BATCH_SIZE = 15
 NETWORK = 'resnet'
+NUMOFCLASS = 4
 
 
 def main():
     camera_1 = camera()
-    folder_1 = folder('/home/hackerton/mylife', number_of_class=3)
+    folder_1 = folder('/home/hackerton/mylife', number_of_class=NUMOFCLASS)
 
-    network_1 = expandingNetwork(number_of_class=3, model_type=NETWORK)
+    network_1 = expandingNetwork(number_of_class=NUMOFCLASS, model_type=NETWORK)
 
     enable_realtime_prediction = False
 
@@ -31,7 +32,7 @@ def main():
 
             index = np.argmax(probability[0])
 
-            ls_person = ('a', 'c', 'p')
+            ls_person = ('a', 'c', 'p', 'd')
 
             putText(
                 img=image,
