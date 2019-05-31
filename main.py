@@ -5,6 +5,7 @@ from folder import folder
 from neural_network import expandingNetwork, defaultNetwork
 from cv2 import imshow, waitKey, destroyAllWindows, putText, LINE_8
 from cv2 import imread, imreadmulti, cvtColor, COLOR_BGR2RGB
+from utils import timer
 
 BATCH_SIZE = 15
 NETWORK = 'resnet'
@@ -19,6 +20,10 @@ def main():
 
     enable_realtime_prediction = False
 
+    @timer
+    def bench():
+        return network_1.infer(image=infer_image, network_type=NETWORK)
+
     while True:
         ret, image = camera_1.play()
 
@@ -28,7 +33,7 @@ def main():
             infer_image = image
 
         if enable_realtime_prediction is True:
-            probability = network_1.infer(image=infer_image, network_type=NETWORK)
+            probability = bench()
 
             index = np.argmax(probability[0])
 
